@@ -7,7 +7,6 @@
  */
 #include <Arduino.h>
 #include <TelemetryNode.h>
-#include <RunnableLed.h>
 /* Configure the telemetry node */
 #include "TELEM_CONFIG.h"
 
@@ -20,12 +19,6 @@
 #error "Unsupported platform"
 #endif
 
-/* Runnable LED (we'll use the onboard LED for this example)*/
-RunnableLed ledOnboard = RunnableLed(
-  LED_BUILTIN, // pin
-  LOW // "on" pin state
-);
-
 /* Connections */
 WiFiClient wiFiClient;
 MqttClient mqttClient(wiFiClient);
@@ -34,14 +27,10 @@ MqttClient mqttClient(wiFiClient);
 TelemetryNode telemNode = TelemetryNode(
   wiFiClient,
   mqttClient,
-  ledOnboard,
   TELEM_CONFIG
 );
 
 void setup() {
-    /* set pinMode or LED won't work */
-    pinMode(LED_BUILTIN, OUTPUT);
-
     /* begin the telemetry node */
     telemNode.begin();
 
@@ -55,7 +44,6 @@ void setup() {
 }
 
 void onMqttOnMessage(int messageSize) {
-  ledOnboard.flashTimes(3, 50);
 }
 
 void loop() {

@@ -20,16 +20,25 @@ const char* telemEventToString(TelemetryEventType eventType) {
     }
 }
 
+void TelemetryNode::begin() {
+    /* start the debug logger + Serial */
+    log->begin(telemConfig.serial_baud_rate);
+}
+
 void TelemetryNode::connect() {
-    /* clear LEDs */
-    ledStatus->off();
-    ledStatus->run();
+    if (ledStatus != nullptr) {
+        /* clear LEDs */
+        ledStatus->off();
+        ledStatus->run();
+    }
 
     _connectToWiFi();
     _connectToMqttHost(0);
 
-    /* connected, flash LEDs */
-    ledStatus->flashTimes(3, 250);
+    if (ledStatus != nullptr) {
+        /* connected, flash LEDs */
+        ledStatus->flashTimes(3, 250);
+    }
 }
 
 void TelemetryNode::run() {
@@ -37,8 +46,11 @@ void TelemetryNode::run() {
     mqttClient->poll(); // poll the MQTT client to keep the connection alive
 
     yield();
-    ledStatus->run(); // run LEDs to ensure animations work
-    yield();
+    if (ledStatus != nullptr) {
+        ledStatus->run(); // run LEDs to ensure animations work
+         yield();
+    }
+  
 
     if (millis() - tsLastKeepAlive >= telemConfig.timeout_keep_alive) {
         _keepAlive();
@@ -54,30 +66,39 @@ void TelemetryNode::run() {
 }
 
 void TelemetryNode::_connectToWiFi() {
-    Serial.print("[TelemetryNode]: attempting WiFi connection to SSID: ");
-    Serial.println(telemConfig.wifi_ssid);
+    log->print("[TelemetryNode]: attempting WiFi connection to SSID: ");
+    log->println(telemConfig.wifi_ssid);
 
     // WiFi.mode(WIFI_STA); // may be needed for ESP32s
     WiFi.begin(telemConfig.wifi_ssid, telemConfig.wifi_password);
 
-    // set connection LED flashing
     uint8_t msDelay = 150;
-    ledStatus->flashIndefinitely(msDelay);
+
+    // set connection LED flashing
+    if (ledStatus != nullptr) {
+        ledStatus->flashIndefinitely(msDelay);
+    }
+
     unsigned long tsDotLast = msDelay;
 
     // wait for WiFi to connect
     while (WiFi.status() != WL_CONNECTED) {
-        ledStatus->run();
+        if (ledStatus != nullptr) {
+            ledStatus->run();
+        }
 
         if (millis() - tsDotLast >= msDelay) {
-            Serial.print(".");
+            log->print(".");
             tsDotLast = millis();
         }
     }
 
-    Serial.println("\n[TelemetryNode]: WiFi connected!");
-    ledStatus->off();
-    ledStatus->run();
+    log->println("\n[TelemetryNode]: WiFi connected!");
+
+    if (ledStatus != nullptr) {
+        ledStatus->off();
+        ledStatus->run();
+    }
 }
 
 void TelemetryNode::_sendMqttWill() {
@@ -95,43 +116,37 @@ void TelemetryNode::_sendMqttWill() {
 
 void TelemetryNode::_connectToMqttHost(uint8_t attemptNumber) {
     if (attemptNumber > telemConfig.mqtt_connect_reconnect_tries) {
-        Serial.println("[TelemetryNode]: max retries reached! RESTARTING!");
+        log->println("[TelemetryNode]: max retries reached! RESTARTING!");
         delay(telemConfig.mqtt_connect_reconnect_delay); // wait for the specified delay, then restart
         ESP.restart();
     }
 
-    Serial.print("[TelemetryNode]: attempting to connect to MQTT host IP ->");
-    Serial.print(telemConfig.mqtt_broker_ip_addr);
-    Serial.print(" & port -> ");
-    Serial.println(telemConfig.mqtt_broker_port);
+    log->print("[TelemetryNode]: attempting to connect to MQTT host IP ->");
+    log->print(telemConfig.mqtt_broker_ip_addr);
+    log->print(" & port -> ");
+    log->println(telemConfig.mqtt_broker_port);
 
-    Serial.println("[TelemetryNode]: sending LWT");
+    log->println("[TelemetryNode]: sending LWT");
     _sendMqttWill();
     
-    Serial.println("[TelemetryNode]: setting connection vars..");
+    log->println("[TelemetryNode]: setting connection vars..");
     // setup connection information
     mqttClient->setCleanSession(telemConfig.mqtt_use_clean_session);
 
-    // convert MQTT ID to char array
-    String fullNodeId = _getNodeMqttId();
-    uint8_t strLenFullNodeId = fullNodeId.length() + 1;
-    char mqttNodeId[strLenFullNodeId];
-    fullNodeId.toCharArray(mqttNodeId, strLenFullNodeId);
-
     // set node ID, username and password
-    mqttClient->setId(mqttNodeId);
+    mqttClient->setId(telemConfig.mqtt_device_id);
     mqttClient->setUsernamePassword(telemConfig.mqtt_uname, telemConfig.mqtt_pass);
 
-    Serial.print("[TelemetryNode]: Connecting to MQTT broker with ID -> ");
-    Serial.println(mqttNodeId);
+    log->print("[TelemetryNode]: Connecting to MQTT broker with ID -> ");
+    log->println(telemConfig.mqtt_device_id);
 
     // if the connection failed
     if (!mqttClient->connect(telemConfig.mqtt_broker_ip_addr, telemConfig.mqtt_broker_port)) {
         ledStatus->flashIndefinitely(50);
-        Serial.print("[TelemetryNode]: MQTT broker connection FAILED! connection error -> ");
-        Serial.println(mqttClient->connectError());
+        log->print("[TelemetryNode]: MQTT broker connection FAILED! connection error -> ");
+        log->println(mqttClient->connectError());
 
-        Serial.println("[TelemetryNodel]: waiting to re-attempt MQTT connection...");
+        log->println("[TelemetryNodel]: waiting to re-attempt MQTT connection...");
         // wait for the connection timeout
         tsLastMqttConnAttempt = millis();
         while(millis() - tsLastMqttConnAttempt < telemConfig.mqtt_connect_reconnect_timeout) {
@@ -141,7 +156,7 @@ void TelemetryNode::_connectToMqttHost(uint8_t attemptNumber) {
         _connectToMqttHost(attemptNumber++); // try connecting again
     }
 
-    Serial.println("[TelemetryNode]: MQTT broker connection SUCCESSFUL!");
+    log->println("[TelemetryNode]: MQTT broker connection SUCCESSFUL!");
     /* broadcast telemetry event - ONLINE */
     JsonDocument jsonPayload;
 
@@ -155,34 +170,30 @@ void TelemetryNode::_connectToMqttHost(uint8_t attemptNumber) {
 
 void TelemetryNode::_keepAlive() {
     yield();
-    Serial.println("[TelemetryNode]: running keep alive logic");
+    log->println("[TelemetryNode]: running keep alive logic");
 
     yield();
-    Serial.println("[TelemetryNode]: managing MQTT broker connection, checking if connected");
+    log->println("[TelemetryNode]: managing MQTT broker connection, checking if connected");
 
     if (mqttClient->connected()) {
         yield();
-        Serial.println("[TelemetryNode]: MQTT client connection OK");
+        log->println("[TelemetryNode]: MQTT client connection OK");
         return;
     }
 
-    Serial.println("[TelemetryNode]: MQTT client NOT CONNECTED! Attempting reconnect...");
+    log->println("[TelemetryNode]: MQTT client NOT CONNECTED! Attempting reconnect...");
      _connectToMqttHost(0); // attempt to connect to the MQTT broker
 
     if (mqttClient->connected()) {
         yield();
-        Serial.println("[TelemetryNode]: MQTT client reconnection SUCCESS");
+        log->println("[TelemetryNode]: MQTT client reconnection SUCCESS");
         return;
     }
 
     /* MQTT re-connect failed.. */
-    Serial.println("[TelemetryNode]: MQTT client reconnect UNSUCCESSFUL:[MAX RECONNECT ATTEMPTS REACHED], performing HARD RESET!");
+    log->println("[TelemetryNode]: MQTT client reconnect UNSUCCESSFUL:[MAX RECONNECT ATTEMPTS REACHED], performing HARD RESET!");
     ESP.restart();
     yield();
-}
-
-String TelemetryNode::_getNodeMqttId() {
-  return String(telemConfig.mqtt_device_type + "-" + telemConfig.mqtt_device_id);
 }
 
 char* getTimeFromMillis() {
@@ -209,14 +220,30 @@ void TelemetryNode::publishTelmetryInfo(JsonDocument jsonPayload) {
     int8_t rssi = WiFi.RSSI();
 
     jsonPayload["id"] = telemConfig.mqtt_device_id;
-    jsonPayload["type"] = telemConfig.mqtt_device_type;
+
+    /* get chip info from the board */
+    #ifdef ESP8266
+        jsonPayload["type"] = "ESP8266-" + String(ESP.getCoreVersion());
+    #elif defined(ESP32)
+        jsonPayload["type"] = String(ESP.getChipModel()) + "-" + String(ESP.getCoreVersion());
+    #else
+        jsonPayload["type"] = "uknown";
+    #endif
+
     jsonPayload["ver"] = "1.0.0-beta";
     jsonPayload["wifiSignal"] = rssi;
     
     String event = jsonPayload["event"];
 
     if (event == telemEventToString(TELEM_EVENT_DEVICE_ONLINE)) {
-        jsonPayload["resetReason"] = ESP.getResetReason();
+        #ifdef ESP8266
+            jsonPayload["resetReason"] = ESP.getResetReason();
+        #elif defined(ESP32)
+            jsonPayload["resetReason"] = esp_reset_reason_t();
+        #else
+            jsonPayload["resetReason"] = "uknown";
+        #endif
+
         // include action path on EVENT_DEVICE_ONLINE events
         jsonPayload["actions"] = telemConfig.topic_device_actions;
     } else {
@@ -236,18 +263,20 @@ void TelemetryNode::publishTelmetryInfo(JsonDocument jsonPayload) {
     mqttClient->flush();
 
     // flash LEDs
-    ledStatus->flashTimes(1, 250);
+    if (ledStatus != nullptr) {
+        ledStatus->flashTimes(1, 250);
+    }
 
-    Serial.println("[TelemetryNode]: device telemetry published!");
+    log->println("[TelemetryNode]: device telemetry published!");
     
-    Serial.print("[TelemetryNode]: telemetry - time alive: ");
-    Serial.println(timeAlive);
+    log->print("[TelemetryNode]: telemetry - time alive: ");
+    log->println(timeAlive);
     
-    Serial.print("[TelemetryNode]: telemetry - WiFi signal strength -> ");
-    Serial.println(rssi);
+    log->print("[TelemetryNode]: telemetry - WiFi signal strength -> ");
+    log->println(rssi);
 
-    Serial.print("[TelemetryNode]: event -> ");
-    Serial.println(event);
+    log->print("[TelemetryNode]: event -> ");
+    log->println(event);
 
     yield();
     yield();
@@ -261,10 +290,10 @@ void TelemetryNode::_publishHeartbeat() {
 
 JsonDocument TelemetryNode::incomingMqttMessagetoJson(int _messageSize) {
   // we received a message, print out the topic and contents
-  Serial.println("[TelemetryNode]: <-INCOMING-MQTT-MESSAGE->");
+  log->println("[TelemetryNode]: <-INCOMING-MQTT-MESSAGE->");
   
-  Serial.print("  [Topic]: ");
-  Serial.println(mqttClient->messageTopic());
+  log->print("  [Topic]: ");
+  log->println(mqttClient->messageTopic());
 
   // convert the message into a string
   char payloadString[_messageSize];
@@ -281,22 +310,6 @@ JsonDocument TelemetryNode::incomingMqttMessagetoJson(int _messageSize) {
   return json;
 }
 
-void TelemetryNode::_log(char _msg) {
-    if (!isDebugging) {
-        return;
-    }
-
-    Serial.print(_msg);
-}
-
-void TelemetryNode::_logLn(char _msg) {
-    if (!isDebugging) {
-        return;
-    }
-
-    Serial.println(_msg);
-}
-
 void TelemetryNode::setDebugging(bool _isDebugging) {
-    isDebugging = _isDebugging;
+    log->setLogging(_isDebugging);
 }

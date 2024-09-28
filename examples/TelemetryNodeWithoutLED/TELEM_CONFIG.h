@@ -11,12 +11,13 @@ const TelemetryNodeConfig TELEM_CONFIG = {
   "uname", // --------------------------- MQTT username
   "password", // ------------------------ MQTT password
   "<mqtt-device-id>", // ---------------- MQTT device ID
+  "Adafruit Feather HUZZAH ESP8266", // - MQTT device type 
   false, // ----------------------------- MQTT clean session flag
   5, // --------------------------------- MQTT connection retries
   30000, // ----------------------------- MQTT reconnect timeout between connection tries
   60000, // ----------------------------- MQTT reconnect delay time before restarting after max failed attempts
   R"json({
-    id: <mqtt-device-id>,
+    id: <device-id>,
     type: <device-type>,
     online: 0,
     event: "DEVICE_LAST_WILL",
