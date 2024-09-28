@@ -50,7 +50,7 @@ void setup() {
 
     // do MQTT pub/sub
     mqttClient.onMessage(onMqttOnMessage);
-    mqttClient.subscribe(TELEM_CONFIG.topic_device_actions, 1); //subscribe to actions
+    mqttClient.subscribe(TELEM_CONFIG.topic.incoming_actions, 1); //subscribe to actions
     mqttClient.subscribe("/mqtt-channel/i-want-to-subscribe-to/telmNode");
 }
 
