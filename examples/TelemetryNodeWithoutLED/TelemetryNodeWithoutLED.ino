@@ -44,6 +44,7 @@ void setup() {
 }
 
 void onMqttOnMessage(int messageSize) {
+  JsonDocument json = telemNode.processIncomingMessage(messageSize);
 }
 
 void loop() {

@@ -56,6 +56,7 @@ void setup() {
 
 void onMqttOnMessage(int messageSize) {
   ledOnboard.flashTimes(3, 50);
+  JsonDocument json = telemNode.processIncomingMessage(messageSize);
 }
 
 void loop() {

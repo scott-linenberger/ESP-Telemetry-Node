@@ -14,35 +14,46 @@ const TelemetryNodeConfig TELEM_CONFIG = {
       "<mqtt-client-id>", // ---------------- MQTT client ID
       false, // ----------------------------- MQTT clean session flag
       5, // --------------------------------- MQTT connection retries before reboot
-      R"json({
-        id: <mqtt-device-id>,
-        type: <device-type>,
-        online: 0,
-        event: "DEVICE_LAST_WILL",
-        msg: "He's dead, Jim.",
-      })json", // --------------------------- MQTT last will JSON string
-      true, // ------------------------------ MQTT last will retain
-      1, // --------------------------------- MQTT last will QOS
+      {
+        true, // ---------------------------- MQTT send last will message
+        R"json({
+          id: <mqtt-device-id>,
+          type: <device-type>,
+          online: 0,
+          event: "DEVICE_LAST_WILL",
+          msg: "He's dead, Jim.",
+        })json", // --------------------------- MQTT last will JSON string
+        true, // ------------------------------ MQTT last will retain
+        1, // --------------------------------- MQTT last will QOS
+      }
   },
   /* DEVICE */
   {
     115200, // ---------------------------- Serial baud rate
     true, // ------------------------------ logs Serial output when true, does NOT when false
-    true, // ------------------------------ enable heartbeats
-    false, // ----------------------------- retain heartbeat messages
-    0, // --------------------------------- qos hertbeat messages
-    true, // ------------------------------ send device reset reason
-    true, // ------------------------------ retain device reset reason
-    0, // --------------------------------- qos device device reset reason messages
-    true, // ------------------------------ send device time alive when heartbeat
-    true, // ------------------------------ retain device time alive
-    0, // --------------------------------- qos device time alive messages
-    true, // ------------------------------ send wifi signal strength when heartbeat
-    false, // ----------------------------- retain wifi signal messages
-    0, // --------------------------------- qos wifi signal messages
-    true, // ------------------------------ send available memory heap when heartbeat
-    false, // ----------------------------- retain available memory heap messages
-    0, // --------------------------------- qos available memory messages
+    /* MQTT Message Settings - Reset Reason */
+    true, // ----------------------------- retain reset reason
+    0, // --------------------------------- qos reset reason
+    { /* METRICS HEARTBEAT - !! IF HEARTBEATS DISABLED, NO DEVICE METRICS WILL BE PUBLISHED !! */
+      true, // ------------------------------ enable heartbeats
+      false, // ----------------------------- retain heartbeat messages
+      0 // --------------------------------- qos hertbeat messages
+    },
+    { /* METRIC - Time Alive */
+      true, // ------------------------------ send device time alive with heartbeat
+      true, // ------------------------------ retain device time alive messages
+      0 // --------------------------------- qos device time alive messages
+    },
+    { /* METRIC - WiFi Signal */
+      true, // ------------------------------ send wifi signal strength when heartbeat
+      false, // ----------------------------- retain wifi signal messages
+      0 // --------------------------------- qos wifi signal messages
+    },
+    { /* METRIC - Free Heap Memory */
+      true, // ------------------------------ send available memory heap when heartbeat
+      false, // ----------------------------- retain available memory heap messages
+      0 // --------------------------------- qos available memory messages
+    }
   },
   /* TIMEOUTS CONFIGURATION */
   {

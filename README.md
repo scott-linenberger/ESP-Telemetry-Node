@@ -4,6 +4,12 @@ Turn your ESP8266 or ESP32 into an MQTT Telemetry Reporter with keep-alive and h
 
 ## Features
 
+- Easy setup with less boiler-plate code
+- Highly Configurable
+- Keep alive & recovery logic
+- Remote management & configuration
+- Non-blocking logic
+
 ### Connection Management, Keep Alive & Recovery
 
 ESP-Telemetry-Node or "Telemetry Node" manages your `Serail`, `WiFi` and `MqttClient` connections to make getting online easy.

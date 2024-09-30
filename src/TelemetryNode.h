@@ -21,46 +21,58 @@ enum TelemetryEventType {
     EVENT_DEVICE_ONLINE,
     EVENT_DEVICE_RECONNECT,
     EVENT_DEVICE_HEARTBEAT,
-    EVENT_TELEMETRY,
-    EVENT_TELEM_REQUEST_RESPONSE,
+    EVENT_DEVICE_HEARTBEAT_ENABLED,
+    EVENT_DEVICE_HEARTBEAT_DISABLED,
+    EVENT_DEVICE_HEARTRATE_UPDATED,
+};
+
+enum DeviceActionFlag {
+    ACTION_FLAG_RUN,
+    ACTION_FLAG_PUBLISH_HEARTBEAT,
+    ACTION_FLAG_PUBLISH_HEARTBEAT_ENABLED,
+    ACTION_FLAG_HEARTBEAT_UPDATED,
+    ACTION_FLAG_PUBLISH_HEARTBEAT_DISABLED,
+    ACTION_FLAG_REBOOT,
 };
 
 /* convenience method for user-friendly enum strings */
 const char* telemEventToString(TelemetryEventType eventType);
 
+struct LastWillConfig {
+    bool          is_sending;
+    String        mqtt_msg;
+    bool          mqtt_retain; 
+    int           mqtt_qos;
+};
+
+struct MetricConfig {
+  bool    is_broadcasting;
+  bool    is_retained;
+  uint8_t qos;
+};
+
 struct DeviceConfig {
     unsigned long serial_baud_rate;
     bool is_logging;
-    bool is_broadcast_heartbeat;
-    bool retain_heartbeat;
-    uint8_t qos_heartbeat;
-    bool is_broadcast_reset_reason;
     bool retain_reset_reason;
     uint8_t qos_reset_reason;
-    bool is_broadcast_time_alive;
-    bool retain_time_alive;
-    uint8_t qos_time_alive;
-    bool is_broadcast_wifi_signal;
-    bool retain_wifi_signal;
-    uint8_t qos_wifi_signal;
-    bool is_broadcast_memory_available;
-    bool retain_memory_available;
-    uint8_t qos_memory_available;
+    MetricConfig heartbeat;
+    MetricConfig time_alive;
+    MetricConfig wifi_signal;
+    MetricConfig heap_memory;
 };
 
 struct ConnectionConfig {
-    char          wifi_ssid[100];
-    char          wifi_password[100];
-    char          mqtt_broker_ip_addr[100];
-    int           mqtt_broker_port;
-    char          mqtt_uname[100];
-    char          mqtt_pass[100];
-    String        mqtt_client_id;
-    bool          mqtt_use_clean_session;
-    uint16_t      mqtt_connect_reconnect_tries;
-    String        mqtt_last_will_msg;
-    bool          mqtt_last_will_retain; 
-    int           mqtt_last_will_qos;
+    char           wifi_ssid[100];
+    char           wifi_password[100];
+    char           mqtt_broker_ip_addr[100];
+    int            mqtt_broker_port;
+    char           mqtt_uname[100];
+    char           mqtt_pass[100];
+    String         mqtt_client_id;
+    bool           mqtt_use_clean_session;
+    uint16_t       mqtt_connect_reconnect_tries;
+    LastWillConfig last_will;
 };
 
 struct TopicConfig {
@@ -102,6 +114,9 @@ class TelemetryNode {
         WiFiClient wiFiClient;
         MqttClient *mqttClient;
 
+        /* action flag */
+        DeviceActionFlag _actionFlag;
+
         /* methods */
         void _connectToWiFi();
         void _connectToMqttHost(uint8_t attemptNumber);
@@ -138,9 +153,8 @@ class TelemetryNode {
         };
         void begin();
         void connect();
-        void run();   
-        void publishTelmetryInfo(JsonDocument jsonPayload);
-        JsonDocument incomingMqttMessagetoJson(int _messageSize);
+        void run(); 
+        JsonDocument processIncomingMessage(int _messageSize);
         void setDebugging(bool _isDebugging);
         void publishWifiSignal();
         void publishMemoryAvailable();
