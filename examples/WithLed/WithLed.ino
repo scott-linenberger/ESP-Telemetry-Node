@@ -1,36 +1,41 @@
 /**
  * COMPATIBLE WITH ESP8266 & ESP32
  * ....................................
- * Tested with:
+ * Tested Device List:
  * - Adafruit Feather Huzzah ESP8266
+ * - Xiao ESP32C3
+ * - Xiao ESP32C6
+ * - Sparkfun Thing Plus ESP32-C6
  * ....................................
  */
 #include <Arduino.h>
 #include <TelemetryNode.h>
+#include <RunnableLed.h>
 /* Configure the telemetry node */
 #include "TELEM_CONFIG.h"
-
-/* import WiFi based on device type */
-#ifdef ESP8266
-#include <ESP8266WiFi.h>  // Include ESP8266-specific header
-#elif defined(ESP32)
-#include <WiFi.h>         // Include ESP32-specific header
-#else
-#error "Unsupported platform"
-#endif
 
 /* Connections */
 WiFiClient wiFiClient;
 MqttClient mqttClient(wiFiClient);
 
+/* LED */
+RunnableLed led = RunnableLed(
+    LED_BUILTIN, // led pin (may vary) 
+    HIGH // "on" state
+);
+
 /* Telemetry Node */
 TelemetryNode telemNode = TelemetryNode(
   wiFiClient,
   mqttClient,
+  led,
   TELEM_CONFIG
 );
 
 void setup() {
+    /* set the pin mode (led may not work w/o this) */
+    pinMode(LED_BUILTIN, OUTPUT);
+
     /* begin the telemetry node */
     telemNode.begin();
 
@@ -39,11 +44,12 @@ void setup() {
 
     // do MQTT pub/sub
     mqttClient.onMessage(onMqttOnMessage);
-    mqttClient.subscribe(TELEM_CONFIG.topic.incoming_actions, 1); //subscribe to actions
-    mqttClient.subscribe("/mqtt-channel/i-want-to-subscribe-to/telmNode");
+    /* subscribe to telemetry node actions to respond to action requests */
+    mqttClient.subscribe(TELEM_CONFIG.topic.incoming_actions, 1);
 }
 
 void onMqttOnMessage(int messageSize) {
+  /* process incoming messages so telemetry node can respond to action requests */
   JsonDocument json = telemNode.processIncomingMessage(messageSize);
 }
 

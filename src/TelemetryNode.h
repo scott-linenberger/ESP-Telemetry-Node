@@ -56,7 +56,7 @@ struct DeviceConfig {
     bool is_logging;
     bool retain_reset_reason;
     uint8_t qos_reset_reason;
-    MetricConfig heartbeat;
+    bool heartbeat_enabled;
     MetricConfig time_alive;
     MetricConfig wifi_signal;
     MetricConfig heap_memory;
@@ -159,6 +159,8 @@ class TelemetryNode {
         void publishWifiSignal();
         void publishMemoryAvailable();
         void publishTimeAlive();
+        MqttClient* getMqttClient();
+        void publishEvent(String eventName);
 };
 
 #endif

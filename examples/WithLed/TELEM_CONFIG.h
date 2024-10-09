@@ -5,8 +5,8 @@
 const TelemetryNodeConfig TELEM_CONFIG = {
   /* CONNECTION */ 
   {
-    "wifiSSID", // ------------------------ Wifi SSID
-    "wifiPassword", // -------------------- Wifi Password
+    "wifiSSID", // -------------------------- Wifi SSID
+    "wifiPassword", // ---------------------- Wifi Password
       "0.0.0.0", // ------------------------- MQTT Broker IP Address
       1883, // ------------------------------ MQTT Broker Port
       "uname", // --------------------------- MQTT username
@@ -16,13 +16,7 @@ const TelemetryNodeConfig TELEM_CONFIG = {
       5, // --------------------------------- MQTT connection retries before reboot
       {
         true, // ---------------------------- MQTT send last will message
-        R"json({
-          id: <mqtt-device-id>,
-          type: <device-type>,
-          online: 0,
-          event: "DEVICE_LAST_WILL",
-          msg: "He's dead, Jim.",
-        })json", // --------------------------- MQTT last will JSON string
+        "EVENT_DEVICE_OFFLINE", // --------------------------- MQTT last will JSON string
         true, // ------------------------------ MQTT last will retain
         1, // --------------------------------- MQTT last will QOS
       }
@@ -34,11 +28,7 @@ const TelemetryNodeConfig TELEM_CONFIG = {
     /* MQTT Message Settings - Reset Reason */
     true, // ----------------------------- retain reset reason
     0, // --------------------------------- qos reset reason
-    { /* METRICS HEARTBEAT - !! IF HEARTBEATS DISABLED, NO DEVICE METRICS WILL BE PUBLISHED !! */
-      true, // ------------------------------ enable heartbeats
-      false, // ----------------------------- retain heartbeat messages
-      0 // --------------------------------- qos hertbeat messages
-    },
+    true, // ------------------------------ enable heartbeats !! IF HEARTBEATS DISABLED, NO DEVICE METRICS WILL BE PUBLISHED !!
     { /* METRIC - Time Alive */
       true, // ------------------------------ send device time alive with heartbeat
       true, // ------------------------------ retain device time alive messages
@@ -64,12 +54,12 @@ const TelemetryNodeConfig TELEM_CONFIG = {
   },
   /* TOPIC CONFIGURATION */
   {
-    "", // ------------------------------- incoming actions topic
-    "", // ------------------------------- telemtry topic
-    "", // ------------------------------- device events topic
-    "", // ------------------------------- device reset reason topic
-    "", // ------------------------------- device time alive
-    "", // ------------------------------- wifi signal topic
-    "", // ------------------------------- memory available topic
+    "<mqtt-client-id>/actions", // ------------------------------- incoming actions topic
+    "<mqtt-client-id>/telemetry", // ------------------------------- telemtry topic
+    "<mqtt-client-id>/device/events", // ------------------------------- device events topic
+    "<mqtt-client-id>/device/reset", // ------------------------------- device reset reason topic
+    "<mqtt-client-id>/device/alive-time", // ------------------------------- device time alive
+    "<mqtt-client-id>/device/wifi", // ------------------------------- wifi signal topic
+    "<mqtt-client-id>/device/heap", // ------------------------------- memory available topic
   }
 };

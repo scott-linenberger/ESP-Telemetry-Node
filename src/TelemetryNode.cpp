@@ -211,7 +211,7 @@ void TelemetryNode::_keepAlive() {
  */
 void TelemetryNode::_publishHeartbeat() {
   /* check if node is configured to send heartbeats */
-  if (!telemConfig.device.heartbeat.is_broadcasting) {
+  if (!telemConfig.device.heartbeat_enabled) {
     /* not broadcasting heartbeat, nothing to do */
     return;
   }
@@ -223,14 +223,17 @@ void TelemetryNode::_publishHeartbeat() {
 
   /* check if we need to broadcast wifi signal info */
   if (telemConfig.device.wifi_signal.is_broadcasting) {
+    yield();
     publishWifiSignal();
   }
 
   if (telemConfig.device.heap_memory.is_broadcasting) {
+    yield();
     publishMemoryAvailable();
   }
 
   if (telemConfig.device.time_alive.is_broadcasting) {
+    yield();
     publishTimeAlive();
   }
 
@@ -253,6 +256,21 @@ void TelemetryNode::_publishDeviceEvent(TelemetryEventType eventType) {
   yield();
 }
 
+void TelemetryNode::publishEvent(String eventName) {
+  yield();
+  // publish EVENT
+  mqttClient->beginMessage(
+    telemConfig.topic.device_events,
+    true, // retain device events
+    0);
+
+  mqttClient->print(eventName);
+  mqttClient->endMessage();
+  mqttClient->flush();
+
+  yield();
+}
+
 void TelemetryNode::_publishDeviceResetReason() {
   yield();
 
@@ -265,7 +283,7 @@ void TelemetryNode::_publishDeviceResetReason() {
 #if defined(ESP32)
   mqttClient->print(esp_reset_reason());
 #elif defined(ESP8266)
-  mqttClient - print(ESP.getResetReason());
+  mqttClient->print(ESP.getResetReason());
 #endif
 
   mqttClient->endMessage();
@@ -383,6 +401,10 @@ void TelemetryNode::run() {
 }
 
 JsonDocument TelemetryNode::processIncomingMessage(int _messageSize) {
+  if (ledStatus != nullptr) {
+    ledStatus->flashTimes(3, 50);
+  }
+
   /* we received a message, print out the topic and contents */
   log->println("[TelemetryNode]: <-INCOMING-MQTT-MESSAGE->");
 
@@ -402,7 +424,6 @@ JsonDocument TelemetryNode::processIncomingMessage(int _messageSize) {
   deserializeJson(json, payloadString);
   int actionRequest = json["action"];
   long heartRate = json["heartRate"];
-  String configProp = json["prop"];
 
   /* check for telemetry node actions & update action flags */
   if (actionRequest == 444) { // set heartrate
@@ -411,12 +432,12 @@ JsonDocument TelemetryNode::processIncomingMessage(int _messageSize) {
   }
 
   if (actionRequest == 555) { // enable heartbeat
-    telemConfig.device.heartbeat.is_broadcasting = true;
+    telemConfig.device.heartbeat_enabled = true;
     _actionFlag = ACTION_FLAG_PUBLISH_HEARTBEAT_ENABLED;
   }
 
   if (actionRequest == 666) { // disable heartbeat
-    telemConfig.device.heartbeat.is_broadcasting = false;
+    telemConfig.device.heartbeat_enabled = false;
     _actionFlag = ACTION_FLAG_PUBLISH_HEARTBEAT_DISABLED;
   }
 
@@ -433,4 +454,8 @@ JsonDocument TelemetryNode::processIncomingMessage(int _messageSize) {
 
 void TelemetryNode::setDebugging(bool _isDebugging) {
   log->setLogging(_isDebugging);
+}
+
+MqttClient* TelemetryNode::getMqttClient() {
+  return mqttClient;
 }
